@@ -1,0 +1,610 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Tapir: a language for verified OS kernel probes</title>
+<meta name="author" content="(Ilya Yanok, Nathaniel Nystrom)"/>
+<link rel="stylesheet" href="reveal.js/css/reveal.css"/>
+<link rel="stylesheet" href="reveal.js/css/theme/serif.css" id="theme"/>
+<link rel="stylesheet" href="presentation.css"/>
+<!-- If the query includes 'print-pdf', include the PDF print sheet -->
+<script>
+    if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = 'reveal.js/css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+    }
+</script>
+<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML,http://yanok.github.io/plos2015/config.js"></script>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+<section id="sec-title-slide" data-background="" data-background-size="" data-background-repeat="" data-background-transition="">
+<h2>Tapir: a language for verified OS kernel probes</h2> <h3>Ilya Yanok, Nathaniel Nystrom</h3> <h4>4 Oct 2015</h4>
+</section>
+
+
+<section>
+<section id="slide-orgheadline12">
+<div class="slide-header"></div>
+<h2 id="orgheadline12">Motivation</h2>
+<div class="outline-text-2" id="text-orgheadline12">
+</div><div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline1">
+<div class="slide-header"></div>
+<h3 id="orgheadline1">System debugging and tuning</h3>
+<ul>
+<li>Systems are large and complex</li>
+<li>Problems often occur only after deployment</li>
+<li>Need to debug and tune <b>interactions</b> between system components <b>in the field</b></li>
+<li>=&gt; Whole-system dynamic instrumentation</li>
+
+</ul>
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline2">
+<div class="slide-header"></div>
+<h3 id="orgheadline2">Whole-system dynamic instrumentation</h3>
+<ul>
+<li>Inject <b>probes</b> into application programs and into the kernel</li>
+<li>Probes inspect the program (kernel) state at their insertion point</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline3">
+<div class="slide-header"></div>
+<h3 id="orgheadline3">DTrace [Cantrill et al. 2004]</h3>
+<ul>
+<li>Small C-like language ("D") for writing probes</li>
+<li>Probes can be inserted (almost) anywhere
+<ul>
+<li>user programs</li>
+<li>device drivers</li>
+<li>the kernel</li>
+
+</ul></li>
+<li>Probes inserted dynamically
+<ul>
+<li>zero cost when no probes are active</li>
+
+</ul></li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline5">
+<div class="slide-header"></div>
+<h3 id="orgheadline5">Probes must not cause panic</h3>
+<div class="outline-text-3" id="text-orgheadline5">
+</div><ul class="org-ul"><li><a id="orgheadline4"></a>Probes cannot &#x2026;<br  /><ul>
+<li>write to application or kernel data structures</li>
+<li>access memory-mapped I/O space</li>
+<li>dynamically allocate memory in the kernel</li>
+<li>cause hardware traps
+<ul>
+<li>e.g., division by zero, accessing unmapped pages or unaligned addresses</li>
+
+</ul></li>
+<li>run for a long time (especially in the kernel)</li>
+
+</ul></li></ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline8">
+<div class="slide-header"></div>
+<h3 id="orgheadline8">How does DTrace ensure safety?</h3>
+<div class="outline-text-3" id="text-orgheadline8">
+</div><ul class="org-ul"><li><a id="orgheadline6"></a>Embed trusted VM in the kernel<br  /><ul>
+<li>Compile probes into bytecode for a simple VM</li>
+<li>VM does run-time checks during bytecode interpretation</li>
+<li>Memory fault handler traps back to the interpreter</li>
+
+</ul></li>
+
+<li><a id="orgheadline7"></a>Restrict the DSL<br  /><ul>
+<li>Writes to kernel or application memory forbidden</li>
+<li>Loops forbidden</li>
+<li>No recursive functions (or really, any functions)</li>
+
+</ul></li></ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline11">
+<div class="slide-header"></div>
+<h3 id="orgheadline11">SystemTap [RedHat]</h3>
+<div class="outline-text-3" id="text-orgheadline11">
+</div><ul class="org-ul"><li><a id="orgheadline9"></a>Similar to DTrace but&#x2026;<br  /><ul>
+<li>DSL supports functions and loops</li>
+<li>No VM. Probes are compiled to native code</li>
+<li>Run-time safety checks are inserted by the compiler</li>
+
+</ul>
+</section>
+<section></li>
+
+<li><a id="orgheadline10"></a>But!!! The DSL allows embedded C code<br  /><blockquote nil>
+<p>
+There are a number of undocumented but complex safety constraints on
+concurrency, resource consumption and runtime limits that are applied to code
+written in the SystemTap language. These constraints are not applied to embedded
+C code, so use embedded C code with extreme caution. Be especially careful when
+dereferencing pointers.
+</p>
+
+<p>
+&#x2013; SystemTap Specification
+</p>
+</blockquote></li></ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline22">
+<div class="slide-header"></div>
+<h2 id="orgheadline22">Idea</h2>
+<div class="outline-text-2" id="text-orgheadline22">
+</div><div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline14">
+<div class="slide-header"></div>
+<h3 id="orgheadline14">Our goal</h3>
+<div class="outline-text-3" id="text-orgheadline14">
+</div><ul class="org-ul"><li><a id="orgheadline13"></a>Whole-system instrumentation solution<br  /><ul>
+<li>provides the same level of safety guarantees as DTrace</li>
+<li>compiles probes to native code</li>
+<li>no ad-hoc analysis</li>
+<li>support for loops (work in progress)</li>
+
+</ul></li></ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline15">
+<div class="slide-header"></div>
+<h3 id="orgheadline15">Tapir</h3>
+
+<div class="figure">
+<p><img src="images/tapir.png" alt="tapir.png" />
+</p>
+</div>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline16">
+<div class="slide-header"></div>
+<h3 id="orgheadline16">Front-end language</h3>
+<ul>
+<li>DTrace-like syntax</li>
+<li>hides the complexity</li>
+<li>compiles to Core</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline19">
+<div class="slide-header"></div>
+<h3 id="orgheadline19">Restrict the language</h3>
+<div class="outline-text-3" id="text-orgheadline19">
+</div><ul class="org-ul"><li><a id="orgheadline17"></a>Both DTrace and SystemTap use combination of two approaches<br  /><ul>
+<li>Restricted language</li>
+<li>Run-time checks</li>
+
+</ul></li>
+<li><a id="orgheadline18"></a>Can we restrict our language even more?<br  /><p>
+In a way such that all the required run-time checks are guaranteed to present?
+</p></li></ul>
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline21">
+<div class="slide-header"></div>
+<h3 id="orgheadline21">Type systems could be used to restrict the language</h3>
+
+<div class="figure">
+<p><img src="images/types.png" alt="types.png" />
+</p>
+</div>
+
+<div class="slide-footer"></div>
+</section>
+<section id="slide-orgheadline20">
+<div class="slide-header"></div>
+<h4 id="orgheadline20">Richer type system could enforce more interesting properties</h4>
+
+<div class="figure">
+<p><img src="images/types1.png" alt="types1.png" />
+</p>
+</div>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline30">
+<div class="slide-header"></div>
+<h2 id="orgheadline30">Dependent types</h2>
+<div class="outline-text-2" id="text-orgheadline30">
+</div><div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline25">
+<div class="slide-header"></div>
+<h3 id="orgheadline25">Notation</h3>
+<div class="outline-text-3" id="text-orgheadline25">
+</div><ul class="org-ul"><li><a id="orgheadline23"></a>Logical rules<br  /><p>
+\(\infer{conclusion}{assumptions}\)
+</p>
+
+<p>
+reads <i>Assuming <b>assumptions</b> hold, <b>conclusion</b> also holds</i>
+</p></li>
+<li><a id="orgheadline24"></a>Typing judgements<br  /><p>
+\(\typed{\Gamma}{t}{\tau}\)
+</p>
+
+<p>
+reads <i>In the context \(\Gamma\) term \(t\) has type \(\tau\)</i>
+</p></li></ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline26">
+<div class="slide-header"></div>
+<h3 id="orgheadline26">Basic types</h3>
+<ul>
+<li>\(\TUnit\) type is a type with exactly one element \(\unit\)</li>
+<li>Sum type denoted by \(\TSum{A}{B}\) is a discriminated (tagged) union</li>
+<li>Product type \(\TProd{A}{B}\) is just a pair</li>
+<li>Function types are denoted with an arrow, such that
+\(A \rightarrow B\)
+is the type of function that take an argument of type \(A\) and returns \(B\)</li>
+<li>Function application is written using <i>juxtposition</i>.</li>
+
+</ul>
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline27">
+<div class="slide-header"></div>
+<h3 id="orgheadline27">Dependent types</h3>
+<ul>
+<li>Allow types to depend on arbitrary terms, for example \(\TVector{A}{n}\) type
+is a type of lists with a known length</li>
+<li>Ability to depend on a arbitrary term and not just a value is important:
+allows to give precise type to more functions. For example, vector
+concatenation:
+\(\infer{\typed{\Gamma}{xs ⧺ ys}{\TVector{A}{(n+m)}}}
+    {\typed{\Gamma}{xs}{\TVector{A}{n}} \quad \typed{\Gamma}{ys}{\TVector{A}{m}}}\)</li>
+
+</ul>
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline28">
+<div class="slide-header"></div>
+<h3 id="orgheadline28">Dependent types could be used to represent propositions about terms</h3>
+<ul>
+<li>For example, type \(\type{IsEven}~n\) can be used to represent a proposition of
+evenness of a natural number</li>
+<li>Types with more than one argument could be used to represent logical relations
+between terms</li>
+<li>Types are propositions, terms are proofs (Curry-Howard isomorphism)</li>
+
+</ul>
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline29">
+<div class="slide-header"></div>
+<h3 id="orgheadline29">Dependent types</h3>
+<ul>
+<li>Widely used for Proof Assistants (Coq, Isabelle, NuPRL, etc)</li>
+<li>Some attempts to apply to systems programming (ATS)</li>
+<li>Type checking is hard</li>
+<li>Coming up with a well-typed term is sometimes much harder</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline36">
+<div class="slide-header"></div>
+<h2 id="orgheadline36">Division by zero</h2>
+<div class="outline-text-2" id="text-orgheadline36">
+</div><div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline31">
+<div class="slide-header"></div>
+<h3 id="orgheadline31">Division by zero must be prevented</h3>
+<ul>
+<li>We don't want to cause trap</li>
+<li>Static checks are not enough:
+<ul>
+<li>may divide by value read from the kernel</li>
+<li>Dynamic checks may be necessary</li>
+
+</ul></li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline32">
+<div class="slide-header"></div>
+<h3 id="orgheadline32">How to ensure dynamic checks are in place?</h3>
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline33">
+<div class="slide-header"></div>
+<h3 id="orgheadline33">Boolean blindness problem</h3>
+<ul>
+<li><p>
+Consider this code
+</p>
+<div class="org-src-container">
+
+<pre  class="src src-C"><span style="color: #b58900;">int</span> <span style="color: #268bd2; font-style: italic;">result</span> = someCheck(arguments);
+<span style="color: #859900;">if</span> (result) {
+  <span style="color: #586e75;">// </span><span style="color: #586e75;">here the information about someCheck()</span>
+  <span style="color: #586e75;">// </span><span style="color: #586e75;">succeeded is lost for the compiler</span>
+  doSomething();
+} <span style="color: #859900;">else</span> {
+  doSomethingElse();
+}
+</pre>
+</div></li>
+<li>Getting the information back requires additional control flow analysis</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline34">
+<div class="slide-header"></div>
+<h3 id="orgheadline34">Dependent types to the rescue!</h3>
+<ul>
+<li>Declare the type to represent the proposition of check being successful \(S\)</li>
+<li>Declare the type of negation: \(\TNot{A}\)</li>
+<li>Change the result type of check operation to be \(\TSum{S}{\TNot{S}}\)</li>
+<li>Branching on the result type will give a proof object of corresponding type,
+which can be used later</li>
+<li>=&gt; Can restrict some operations to the <b>success</b> branch by making them require
+the proof object as an argument</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline35">
+<div class="slide-header"></div>
+<h3 id="orgheadline35">Let's see an example: division</h3>
+<ul>
+<li>Define an <i>is equal to zero</i> type \(\TEqZ{t}\)</li>
+<li>Provide a <i>check if zero</i> operation \(\eqz{t}\) with the typing rule
+\(\infer{\typed{\Gamma}{\eqz{t}}{\TSum{\TEqZ{t}}{\TNot{(\TEqZ{t})}}}}
+         {\typed{\Gamma}{t}{\TWord}}\)</li>
+<li>Restrict safe division operation to require a proof:
+\(\infer{\typed{\Gamma}{\safediv{n}{m}{p}}{\TWord}}
+  {\typed{\Gamma}{n~m}{\TWord} \quad \typed{\Gamma}{p}{\TNot{(\TEqZ{m})}}}\)</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline43">
+<div class="slide-header"></div>
+<h2 id="orgheadline43">Memory safety</h2>
+<div class="outline-text-2" id="text-orgheadline43">
+</div><div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline38">
+<div class="slide-header"></div>
+<h3 id="orgheadline38">Our assumptions</h3>
+<div class="outline-text-3" id="text-orgheadline38">
+</div><ul class="org-ul"><li><a id="orgheadline37"></a>Limitations of our solution<br  /><ul>
+<li>no support for user-space application tracing</li>
+<li>kernel memory is mapped at statically known range of addresses (holds for
+Linux with some nuances)</li>
+<li>no support for Linux high memory inspection</li>
+
+</ul></li></ul>
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline41">
+<div class="slide-header"></div>
+<h3 id="orgheadline41">Could instead use a modified trap handler</h3>
+<div class="outline-text-3" id="text-orgheadline41">
+</div><ul class="org-ul"><li><a id="orgheadline39"></a>Pros<br  /><ul>
+<li>That's what DTrace/SystemTap do</li>
+<li>Needed for user-space program instrumentation</li>
+
+</ul></li>
+<li><a id="orgheadline40"></a>Contras<br  /><ul>
+<li>Can't instrument trap handlers themselves (double-trap)</li>
+<li>Still need a region based check to avoid reading from memory mapped I/O</li>
+
+</ul></li></ul>
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline42">
+<div class="slide-header"></div>
+<h3 id="orgheadline42">Same approach as for division</h3>
+<ul>
+<li>Dynamic checks might be needed</li>
+<li>Type to represent <i>less than</i> relation: \(\TLt{n}{m}\)</li>
+<li>Check operation
+\(\infer{\typed{\Gamma}{\mlt{n}{m}}{\TSum{\TLt{n}{m}}{\TNot{\TLt{n}{m}}}}}
+         {\typed{\Gamma}{n~m}{\TWord}}\)</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline47">
+<div class="slide-header"></div>
+<h2 id="orgheadline47">Step counting</h2>
+<div class="outline-text-2" id="text-orgheadline47">
+</div><div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline44">
+<div class="slide-header"></div>
+<h3 id="orgheadline44">Idea: represent computations as values</h3>
+<ul>
+<li>Introduce type \(\Timed{A}{n}\). Values of this type are computations returning
+type \(A\) in \(n\) steps</li>
+<li>Make all basic operations instances of \(\Timed{}{}\), e.g.
+\(\infer{\typed{\Gamma}{x + y}{\Timed{\TWord}{1}}}{\typed{\Gamma}{x~y}{\TWord}}\)</li>
+
+</ul>
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline45">
+<div class="slide-header"></div>
+<h3 id="orgheadline45">Timed computations can be combined</h3>
+<ul>
+<li>Pure value can be promoted to a timed computation returning in no time
+\(\infer{\typed{\Gamma}{\return{x}}{\Timed{A}{0}}}{\typed{\Gamma}{x}{A}}\)</li>
+<li>Timed computation that returns \(A\) and Timed computation parametrized on \(A\)
+can be combined into a single timed computation
+\(\infer{\typed{\Gamma}{\bind{x}{f}}{\Timed{B}{(n+m)}}}{\typed{\Gamma}{x}{\Timed{A}{n}}
+  \quad \typed{\Gamma}{f}{A \rightarrow \Timed{B}{m}}}\)</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline46">
+<div class="slide-header"></div>
+<h3 id="orgheadline46">Example?</h3>
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline48">
+<div class="slide-header"></div>
+<h2 id="orgheadline48">Future work</h2>
+<ul>
+<li>Nicer DSL</li>
+<li>Formal safety proofs</li>
+<li>Concurrency</li>
+<li>other extensions</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline49">
+<div class="slide-header"></div>
+<h2 id="orgheadline49">Questions?</h2>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgheadline50">
+<div class="slide-header"></div>
+<h2 id="orgheadline50">Thanks!</h2>
+<div class="slide-footer"></div>
+</section>
+</section>
+</div>
+</div>
+<script src="reveal.js/lib/js/head.min.js"></script>
+<script src="reveal.js/js/reveal.js"></script>
+
+<script>
+// Full list of configuration options available here:
+// https://github.com/hakimel/reveal.js#configuration
+Reveal.initialize({
+
+controls: true,
+progress: true,
+history: false,
+center: true,
+slideNumber: true,
+rollingLinks: false,
+keyboard: true,
+overview: true,
+
+theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/fade/none
+transitionSpeed: 'default',
+multiplex: {
+    secret: '', // null if client
+    id: '', // id, obtained from socket.io server
+    url: '' // Location of socket.io server
+},
+
+});
+</script>
+</body>
+</html>
