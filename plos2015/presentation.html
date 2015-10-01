@@ -288,7 +288,7 @@ reads <i>In the context \(\Gamma\) term \(t\) has type \(\tau\)</i>
 <div class="slide-header"></div>
 <h3 id="orgheadline26">Basic types</h3>
 <ul>
-<li>\(\TUnit\) type is a type with exactly one element \(\unit\)</li>
+<li>\(\TUnit\) type is a type with exactly one element \(\typed{\Gamma}{\unit}{\TUnit}\)</li>
 <li>Sum type denoted by \(\TSum{A}{B}\) is a discriminated (tagged) union</li>
 <li>Product type \(\TProd{A}{B}\) is just a pair</li>
 <li>Function types are denoted with an arrow, such that
@@ -307,7 +307,7 @@ is the type of function that take an argument of type \(A\) and returns \(B\)</l
 <ul>
 <li>Allow types to depend on arbitrary terms, for example \(\TVector{A}{n}\) type
 is a type of lists with a known length</li>
-<li>Ability to depend on a arbitrary term and not just a value is important:
+<li>Ability to depend on an arbitrary term and not just a value is important:
 allows to give precise type to more functions. For example, vector
 concatenation:
 \(\infer{\typed{\Gamma}{xs ⧺ ys}{\TVector{A}{(n+m)}}}
@@ -476,7 +476,7 @@ Linux with some nuances)</li>
 <li>Needed for user-space program instrumentation</li>
 
 </ul></li>
-<li><a id="orgheadline40"></a>Contras<br  /><ul>
+<li><a id="orgheadline40"></a>Cons<br  /><ul>
 <li>Can't instrument trap handlers themselves (double-trap)</li>
 <li>Still need a region based check to avoid reading from memory mapped I/O</li>
 
@@ -492,7 +492,7 @@ Linux with some nuances)</li>
 <li>Dynamic checks might be needed</li>
 <li>Type to represent <i>less than</i> relation: \(\TLt{n}{m}\)</li>
 <li>Check operation
-\(\infer{\typed{\Gamma}{\mlt{n}{m}}{\TSum{\TLt{n}{m}}{\TNot{\TLt{n}{m}}}}}
+\(\infer{\typed{\Gamma}{\mlt{n}{m}}{\TSum{\TLt{n}{m}}{\TNot{(\TLt{n}{m})}}}}
          {\typed{\Gamma}{n~m}{\TWord}}\)</li>
 
 </ul>
@@ -554,7 +554,7 @@ can be combined into a single timed computation
 <li>Nicer DSL</li>
 <li>Formal safety proofs</li>
 <li>Concurrency</li>
-<li>other extensions</li>
+<li>Other extensions</li>
 
 </ul>
 
@@ -579,7 +579,7 @@ can be combined into a single timed computation
 </div>
 </div>
 <script src="lib/js/head.min.js"></script>
-<script src="js/reveal.js"></script>
+<script src="reveal.js"></script>
 
 <script>
 // Full list of configuration options available here:

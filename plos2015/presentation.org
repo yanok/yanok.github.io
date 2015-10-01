@@ -169,7 +169,7 @@ $\typed{\Gamma}{t}{\tau}$
 reads /In the context $\Gamma$ term $t$ has type $\tau$/
 
 ** Basic types
-- $\TUnit$ type is a type with exactly one element $\unit$
+- $\TUnit$ type is a type with exactly one element $\typed{\Gamma}{\unit}{\TUnit}$
 - Sum type denoted by $\TSum{A}{B}$ is a discriminated (tagged) union
 - Product type $\TProd{A}{B}$ is just a pair
 - Function types are denoted with an arrow, such that
@@ -179,7 +179,7 @@ reads /In the context $\Gamma$ term $t$ has type $\tau$/
 ** Dependent types
 - Allow types to depend on arbitrary terms, for example $\TVector{A}{n}$ type
   is a type of lists with a known length
-- Ability to depend on a arbitrary term and not just a value is important:
+- Ability to depend on an arbitrary term and not just a value is important:
   allows to give precise type to more functions. For example, vector
   concatenation:
   $\infer{\typed{\Gamma}{xs ⧺ ys}{\TVector{A}{(n+m)}}}
@@ -247,14 +247,14 @@ reads /In the context $\Gamma$ term $t$ has type $\tau$/
 **** Pros
 - That's what DTrace/SystemTap do
 - Needed for user-space program instrumentation
-**** Contras
+**** Cons
 - Can't instrument trap handlers themselves (double-trap)
 - Still need a region based check to avoid reading from memory mapped I/O
 **  Same approach as for division
 - Dynamic checks might be needed
 - Type to represent /less than/ relation: $\TLt{n}{m}$
 - Check operation
-  $\infer{\typed{\Gamma}{\mlt{n}{m}}{\TSum{\TLt{n}{m}}{\TNot{\TLt{n}{m}}}}}
+  $\infer{\typed{\Gamma}{\mlt{n}{m}}{\TSum{\TLt{n}{m}}{\TNot{(\TLt{n}{m})}}}}
          {\typed{\Gamma}{n~m}{\TWord}}$
 
 * Step counting
@@ -276,7 +276,7 @@ reads /In the context $\Gamma$ term $t$ has type $\tau$/
 - Nicer DSL
 - Formal safety proofs
 - Concurrency
-- other extensions
+- Other extensions
 
 * Questions?
 
