@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Implementing Resource-Aware Safe Assembly for Kernel Probes</title>
+<meta name="author" content="(Ilya Yanok, Nathaniel Nystrom)"/>
+<style type="text/css">
+.underline { text-decoration: underline; }
+</style>
+<link rel="stylesheet" href="reveal.js-3.7.0/css/reveal.css"/>
+
+<link rel="stylesheet" href="reveal.js-3.7.0/css/theme/serif.css" id="theme"/>
+
+<link rel="stylesheet" href="presentation.css"/>
+
+<!-- If the query includes 'print-pdf', include the PDF print sheet -->
+<script>
+    if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = 'reveal.js-3.7.0/css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+    }
+</script>
+<script type="text/javascript" src="MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML,local/my.js"></script>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+<section id="sec-title-slide" data-background="" data-background-size="" data-background-repeat="" data-background-transition=""><h1 class="title">Implementing Resource-Aware Safe Assembly for Kernel Probes</h1><h2 class="author">Ilya Yanok, Nathaniel Nystrom</h2><h2 class="date">27 Sep 2018</h2><p class="date">Created: 2018-09-26 Wed 22:36</p>
+</section>
+
+<section>
+<section id="slide-org7300961">
+<div class="slide-header"></div>
+<h2 id="org7300961">Introduction</h2>
+<aside class="notes">
+<p>
+Hello everybody! Welcome to my talk about our work on
+building a resource-aware safe assembly language for kernel probes and embedding
+it into Idris dependently typed language. This is a joint work with my advisor
+Nate Nystrom.
+</p>
+
+</aside>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org518cd22">
+<div class="slide-header"></div>
+<h3 id="org518cd22">Kernel probes</h3>
+<ul>
+<li>pieces of instrumentation code, injected into the kernel</li>
+<li>useful to debug/profile production system &ldquo;in the field&rdquo;</li>
+<li>have to be safe (you don&rsquo;t want your instrumentation to crash the kernel)</li>
+
+</ul>
+<aside class="notes">
+<p>
+So, what are kernel probes? They are (usually) small pieces of instrumentation
+code that can be injected virtually anywhere into the kernel code. They are
+useful to profile deployed production systems. But to be actually useful they
+have to be absolutely safe, not to make the problem worse.
+</p>
+
+</aside>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org3171760">
+<div class="slide-header"></div>
+<h3 id="org3171760">Run in the kernel domain, so</h3>
+<ul>
+<li>Can&rsquo;t rely on OS to handle faults (like page fault or division by 0)</li>
+<li>Has to ensure termination within a fixed bound</li>
+<li>Has limited stack space</li>
+
+</ul>
+<aside class="notes">
+<p>
+Since probes run inside the kernel, we can&rsquo;t rely on usual protection
+mechanisms, kernel won&rsquo;t handle faults for us, so we have to avoid faults
+such as memory faults, division by zero or wrong alignment on some
+architectures.
+</p>
+
+</aside>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org5fc0c21">
+<div class="slide-header"></div>
+<h3 id="org5fc0c21">Existing solutions</h3>
+<ul>
+<li>DTrace [Cantrill et al. 2004]</li>
+<li>SystemTap [RedHat]</li>
+<li>either use bytecode interpretation or not fully safe</li>
+
+</ul>
+<aside class="notes">
+<p>
+There are at least two widely used kernel dynamic instrumentation systems. The
+first was DTrace initially developed for Solaris and then ported to other
+systems. Due to licensing issues DTrace was not available on Linux for a long
+time, so alternative solution was developed on Linux &#x2013; SystemTap. While being
+very similar from the user point of view, the two systems made quite different
+design decisions: DTrace is compiling probes to byte code, which is then
+executed by the interpreter. And SystemTap compiles to the native code. Also
+their approach to safety is different: DTrace is safe because the interpreter is
+safe and SystemTap performs some (unsound) code analysis is make sure probes are safe.
+</p>
+
+</aside>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org10ab1cc">
+<div class="slide-header"></div>
+<h3 id="org10ab1cc">Our Goals</h3>
+<ul>
+<li>provide the same level of safety guarantees as DTrace</li>
+<li>compile probes to native code</li>
+<li>(some) support for iterations</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgb98f619">
+<div class="slide-header"></div>
+<h3 id="orgb98f619">Big Picture</h3>
+
+<div class="figure">
+<p><object type="image/svg+xml" data="./tapir.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+</p>
+</div>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org4b4fad0">
+<div class="slide-header"></div>
+<h3 id="org4b4fad0">Assumptions and Limitations</h3>
+<ul>
+<li>No support for user-space data collection</li>
+<li>Kernel memory mapped to statically known range(s)</li>
+
+</ul>
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org02415f2">
+<div class="slide-header"></div>
+<h2 id="org02415f2">TapirAsm</h2>
+<div class="outline-text-2" id="text-org02415f2">
+</div>
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org4bc6452">
+<div class="slide-header"></div>
+<h3 id="org4bc6452">TapirAsm</h3>
+<ul>
+<li>low-level language for the probe code</li>
+<li>tracks stack and execution steps usage</li>
+<li>ensures required safety properties statically</li>
+
+</ul>
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org7db6645">
+<div class="slide-header"></div>
+<h3 id="org7db6645">Syntax</h3>
+<p>
+\(\tau ::= \Int{sz} \bnf \Ref{\tau} \bnf \Array{n}{\tau}
+             \bnf \Rec{\overline{(nm, \tau)}}\)
+</p>
+
+<p>
+\(i ::= x_1 \oplus x_2 \bnf x \leftarrow i_1 ; i_2 \bnf
+   \alloc{x} \bnf x_1 =_? x_2\)
+\(\bnf x_1 <_? x_2
+   \bnf \br{b}{i_1}{i_2} \bnf \bloop{x_1}{x_2}{i} \bnf \safediv{x_1}{x_2}\)
+</p>
+
+<p>
+\(\bnf \peek{x}{sz}
+     \bnf \readref{x}{f} \bnf \writeref{x_1}{f}{x_2}\)
+</p>
+
+<p>
+\(P ::= x_1 < x_2 \bnf x_1 \equiv x_2
+   \bnf \lnot P\)
+</p>
+
+<p>
+\(f ::= \, <> \bnf [x]f \bnf \{nm\}f\)
+</p>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org8818e15">
+<div class="slide-header"></div>
+<h3 id="org8818e15">Cost model</h3>
+<ul>
+<li>every basic operation takes one step</li>
+<li>infinite number of registers, but we assume every register is allocated on
+the stack</li>
+<li>branches must equalize resource consumption</li>
+<li>so, we compute worst case bound</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org72bd957">
+<div class="slide-header"></div>
+<h3 id="org72bd957">Typing rules</h3>
+<ul>
+<li>We extend typing rules for instructions to additionally carry
+initial/final resource counts [Crary and Weirich 2000]</li>
+<li>need to add notion of allocation tags for proper stack usage tracking</li>
+<li>So, typing judgements for instructions look like
+\(i \vdash \tau, A, (n,m) \to (n',m')\)</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org2572430">
+<div class="slide-header"></div>
+<h3 id="org2572430">Typing rules: allocation tags</h3>
+<ul>
+<li><i>Value</i> &#x2013; not yet allocated</li>
+<li><i>Reg</i> &#x2013; put into (virtual) register</li>
+<li><i>Operand</i> &#x2013; either register or immediate</li>
+<li><i>BoolReg</i> &#x2013; special allocation tag for the check results</li>
+
+</ul>
+
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org176b5a7">
+<div class="slide-header"></div>
+<h3 id="org176b5a7">Typing rules: basic operations</h3>
+<p>
+\(\infer
+{\Gamma \vdash x_1 \oplus x_2 : \Int{sz},\Value,(n+1,m) \to (n,m)}
+{\Gamma \vdash x_1,x_2 : \Int{sz},\Operand}\)
+</p>
+
+<p>
+\(\infer
+{\Gamma_1;\Gamma_2 \vdash \safediv{x_1}{x_2} : \Int{sz}, \Value, (n+1,m) \to (n,m)}
+{\Gamma_1 \vdash x_1,x_2 : \Int{sz},\Operand \,\, \Gamma_2 \vdash \lnot (x_1 \equiv 0)}\)
+</p>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org82d3e4f">
+<div class="slide-header"></div>
+<h3 id="org82d3e4f">Typing rules: alloc and sequence</h3>
+<p>
+\(\infer
+{\Gamma\vdash \alloc{x} : \tau, \Reg, (n,m+|\tau|) \to (n, m)}
+{\Gamma\vdash x : \tau, \Value}\)
+</p>
+
+<p>
+\(\infer
+{\Gamma\vdash x \leftarrow i_1; i_2 : \sigma, A_2, (n,m) \to (n'',m'')}
+{\substack{\Gamma\vdash i_1 : \tau, A_1, (n,m) \to (n',m') \\
+\Gamma, (x, \tau, A_1) \vdash i_2 : \sigma, A_2, (n',m') \to (n'',m'')}}\)
+</p>
+
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org691e9c3">
+<div class="slide-header"></div>
+<h3 id="org691e9c3">Typing rules: checks and branching</h3>
+<p>
+\(\infer
+{\Gamma\vdash x_1 =_? x_2 : x_1 \equiv x_2, \BoolReg, (n+1,m+1) \to (n,m)}
+             {\Gamma\vdash x_1, x_2 : \Int{sz},\Operand}\)
+</p>
+
+<p>
+\(\infer
+{\Gamma_1;\Gamma_2 \vdash \br{b}{i_1}{i_2} : \tau, \Reg, (n+1, m+|\tau|) \to (n',m')}
+{\substack{
+\Gamma_1;\Gamma_2 \vdash b : P, \,\BoolReg \\
+\Gamma_1;\Gamma_2, P\, \vdash i_1 : \tau, \Value, (n,m) \to (n',m') \\
+\Gamma_1;\Gamma_2, \lnot P\, \vdash i_2 : \tau, \Value, (n,m) \to (n',m')}
+}\)
+</p>
+
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgc263285">
+<div class="slide-header"></div>
+<h3 id="orgc263285">Typing rules: loops</h3>
+<p>
+\(\infer{\substack{\Gamma_1; \Gamma_2 \vdash \bloop{x_1}{x_2}{i} : \tau, \Reg,
+   (n*p + p', |\tau| + 8 + s' + s) \to (p', 8 + s' + s)}}
+   {\substack{\Gamma_2 \vdash x_1 \equiv n \\
+              \Gamma_1, (c, \Int 64, \Reg), (a, \tau, \Reg); \Gamma_2, c < n \vdash
+     i : \tau, \Value, (p + r, s' + s'') \to (r, s'')}}\)
+</p>
+
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgc27c170">
+<div class="slide-header"></div>
+<h2 id="orgc27c170">Embedding into Idris</h2>
+<div class="outline-text-2" id="text-orgc27c170">
+</div>
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org79fff58">
+<div class="slide-header"></div>
+<h3 id="org79fff58">Why embed?</h3>
+<ul>
+<li>Can use host language type system to encode typing rules</li>
+<li>Get rich macro language for free</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgf560f75">
+<div class="slide-header"></div>
+<h3 id="orgf560f75">Why Idris?</h3>
+<ul>
+<li>Dependent types</li>
+<li>Flexible do-notation</li>
+<li>auto implicits</li>
+<li>syntax extensions</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orga334984">
+<div class="slide-header"></div>
+<h3 id="orga334984">Techniques used</h3>
+<ul>
+<li>Indexed monad [Atkey 2009] for instructions</li>
+<li>HOAS-style for registers/proofs</li>
+<li>Rank-2 polymorphic types for ensure registers/proofs are unforgeable
+(a la Lazy Functional State Threads [Launchbury 1994])</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org0d3a1b8">
+<div class="slide-header"></div>
+<h3 id="org0d3a1b8"><code>Instruction</code> indexed monad</h3>
+<ul>
+<li>indexed by initial/final resource counts</li>
+<li>almost direct encoding of our typing rules</li>
+<li>can be used with do-notation</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org16c6b62">
+<div class="slide-header"></div>
+<h3 id="org16c6b62"><code>Instruction</code> monad (2)</h3>
+<div class="org-src-container">
+
+<pre  class="src src-agda2">data Instruction : <span style="color: #4f97d7;">(</span>r : Repr<span style="color: #4f97d7;">)</span>
+                -&gt; <span style="color: #4f97d7;">(</span>s, s', st, st' : Nat<span style="color: #4f97d7;">)</span> -&gt; Type -&gt; Type where
+  Div : Operand r <span style="color: #4f97d7;">(</span>TInt sz<span style="color: #4f97d7;">)</span> -&gt; <span style="color: #4f97d7;">(</span>d : Operand r <span style="color: #bc6ec5;">(</span>TInt sz<span style="color: #bc6ec5;">)</span><span style="color: #4f97d7;">)</span> -&gt;
+        <span style="color: #4f97d7;">{</span>auto prfNZ : IsNZ r d<span style="color: #4f97d7;">}</span> -&gt;
+        Instruction r s s <span style="color: #4f97d7;">(</span><span style="color: #a45bad;">1</span> + st<span style="color: #4f97d7;">)</span> st <span style="color: #4f97d7;">(</span>Value r <span style="color: #bc6ec5;">(</span>TInt sz<span style="color: #bc6ec5;">)</span><span style="color: #4f97d7;">)</span>
+  Lt : <span style="color: #4f97d7;">(</span>x : Operand r <span style="color: #bc6ec5;">(</span>TInt sz<span style="color: #bc6ec5;">)</span><span style="color: #4f97d7;">)</span> -&gt; <span style="color: #4f97d7;">(</span>y : Operand r <span style="color: #bc6ec5;">(</span>TInt sz<span style="color: #bc6ec5;">)</span><span style="color: #4f97d7;">)</span> -&gt;
+       Instruction r <span style="color: #4f97d7;">(</span><span style="color: #a45bad;">1</span> + s<span style="color: #4f97d7;">)</span> s <span style="color: #4f97d7;">(</span><span style="color: #a45bad;">1</span> + st<span style="color: #4f97d7;">)</span> st <span style="color: #4f97d7;">(</span>BoolReg r <span style="color: #bc6ec5;">(</span>LT x y<span style="color: #bc6ec5;">)</span><span style="color: #4f97d7;">)</span>
+  Br : BoolReg r prop -&gt;
+   <span style="color: #4f97d7;">(</span>Proof r prop -&gt; Instruction r s s' st st' <span style="color: #bc6ec5;">(</span>Value r ty<span style="color: #bc6ec5;">)</span><span style="color: #4f97d7;">)</span> -&gt;
+   <span style="color: #4f97d7;">(</span>Proof r <span style="color: #bc6ec5;">(</span>NOT prop<span style="color: #bc6ec5;">)</span> -&gt; Instruction r s s' st st' <span style="color: #bc6ec5;">(</span>Value r ty<span style="color: #bc6ec5;">)</span><span style="color: #4f97d7;">)</span>
+   -&gt; Instruction r <span style="color: #4f97d7;">(</span>size ty + s<span style="color: #4f97d7;">)</span> s' <span style="color: #4f97d7;">(</span><span style="color: #a45bad;">1</span> + st<span style="color: #4f97d7;">)</span> st' <span style="color: #4f97d7;">(</span>reg r ty<span style="color: #4f97d7;">)</span>
+  Alloc : Value r t -&gt; Instruction r <span style="color: #4f97d7;">(</span>size t+s<span style="color: #4f97d7;">)</span> s st st <span style="color: #4f97d7;">(</span>reg r t<span style="color: #4f97d7;">)</span>
+  <span style="color: #4f97d7;">(</span>&gt;&gt;=<span style="color: #4f97d7;">)</span> : Instruction r s s' st st' t -&gt;
+          <span style="color: #4f97d7;">(</span>t -&gt; Instruction r s' s'' st' st'' t'<span style="color: #4f97d7;">)</span> -&gt;
+          Instruction r s s'' st st'' t'
+</pre>
+</div>
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org1e568c5">
+<div class="slide-header"></div>
+<h3 id="org1e568c5">Representing registers/proofs</h3>
+<ul>
+<li>Goal: restrict valid instructions to only reference previously allocated registers</li>
+<li>One option is to index <code>Instruction</code> type by context</li>
+<li>We decided to use HOAS-like approach instead and re-use Idris scoping support</li>
+<li>Need to ensure registers are unforgeable</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orga8d5177">
+<div class="slide-header"></div>
+<h3 id="orga8d5177">Ensuring registers are unforgeable</h3>
+<ul>
+<li>Well-typed TapirAsm instructions must be polymorphic in register representation</li>
+<li>It is still necessary to be able to chose representation for code generation</li>
+<li><p>
+codegen function is rank-2 polymorphic (thanks to the anonymous reviewer for
+suggesting this):
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-agda2">codegen : <span style="color: #4f97d7;">(</span><span style="color: #bc6ec5;">{</span>repr : Repr<span style="color: #bc6ec5;">}</span> -&gt; Istruction repr <span style="color: #bc6ec5;">()</span><span style="color: #4f97d7;">)</span>
+       -&gt; CInstruction
+</pre>
+</div></li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org818a8f1">
+<div class="slide-header"></div>
+<h2 id="org818a8f1">Questions?</h2>
+
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org2d80a72">
+<div class="slide-header"></div>
+<h2 id="org2d80a72">More slides</h2>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org42255d6">
+<div class="slide-header"></div>
+<h2 id="org42255d6">Functions</h2>
+<ul>
+<li>in many cases it&rsquo;s more fruitful to just use macros</li>
+<li>still, we sometimes want functions</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org63ac6b7">
+<div class="slide-header"></div>
+<h3 id="org63ac6b7">Adding functions</h3>
+<ul>
+<li>we have no support for 1st class functions, so no function types</li>
+<li>still want functions to be well-behaved</li>
+<li>with some abuse of notation:
+\(\Gamma \vdash f : (\overline{\tau} \to \tau_r), (n, m)\)</li>
+
+</ul>
+
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org83a62ef">
+<div class="slide-header"></div>
+<h3 id="org83a62ef">Parametric functions</h3>
+<ul>
+<li>unfortunately, not enough to define even basic functions</li>
+<li>costs must vary for different invocations</li>
+<li>add an extra parameter:
+\(\Gamma \vdash f(\alpha) : (\overline{\tau(\alpha)} \to \tau_r(\alpha)),
+     (n(\alpha), m(\alpha))\)</li>
+<li>where \(\alpha\) comes from meta-language</li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-orgeb3466e">
+<div class="slide-header"></div>
+<h3 id="orgeb3466e">Compilation of functions</h3>
+<ul>
+<li>we have to instantiate the parameter before compiling</li>
+<li>this results in a compiled copy per used parameter&#x2026; but</li>
+<li>we can detect the copies are the same and keep only one of them</li>
+
+</ul>
+<div class="slide-footer"></div>
+</section>
+</section>
+</div>
+</div>
+<script src="reveal.js-3.7.0/lib/js/head.min.js"></script>
+<script src="reveal.js-3.7.0/js/reveal.js"></script>
+
+<script>
+// Full list of configuration options available here:
+// https://github.com/hakimel/reveal.js#configuration
+Reveal.initialize({
+
+controls: true,
+progress: true,
+history: false,
+center: true,
+slideNumber: 't',
+rollingLinks: false,
+keyboard: true,
+overview: true,
+
+theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+transition: Reveal.getQueryHash().transition || 'none', // default/cube/page/concave/zoom/linear/fade/none
+transitionSpeed: 'default',
+multiplex: {
+    secret: '', // null if client
+    id: '', // id, obtained from socket.io server
+    url: '' // Location of socket.io server
+},
+
+// Optional libraries used to extend on reveal.js
+dependencies: [
+ { src: 'reveal.js-3.7.0/lib/js/classList.js', condition: function() { return !document.body.classList; } },
+ { src: 'reveal.js-3.7.0/plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: 'reveal.js-3.7.0/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: 'reveal.js-3.7.0/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+ { src: 'reveal.js-3.7.0/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }]
+});
+</script>
+</body>
+</html>
