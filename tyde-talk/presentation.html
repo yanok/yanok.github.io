@@ -28,13 +28,13 @@
 <body>
 <div class="reveal">
 <div class="slides">
-<section id="sec-title-slide" data-background="" data-background-size="" data-background-repeat="" data-background-transition=""><h1 class="title">Implementing Resource-Aware Safe Assembly for Kernel Probes</h1><h2 class="author">Ilya Yanok, Nathaniel Nystrom</h2><h2 class="date">27 Sep 2018</h2><p class="date">Created: 2018-09-27 Thu 08:44</p>
+<section id="sec-title-slide" data-background="" data-background-size="" data-background-repeat="" data-background-transition=""><h1 class="title">Implementing Resource-Aware Safe Assembly for Kernel Probes</h1><h2 class="author">Ilya Yanok, Nathaniel Nystrom</h2><h2 class="date">27 Sep 2018</h2><p class="date">Created: 2018-09-27 Thu 09:31</p>
 </section>
 
 <section>
-<section id="slide-orgfd5ff95">
+<section id="slide-org5233fe0">
 <div class="slide-header"></div>
-<h2 id="orgfd5ff95">Introduction</h2>
+<h2 id="org5233fe0">Introduction</h2>
 <aside class="notes">
 <p>
 Hello everybody! Welcome to my talk about our work on
@@ -49,9 +49,9 @@ Nate Nystrom.
 </section>
 </section>
 <section>
-<section id="slide-orga001971">
+<section id="slide-orgaa9125b">
 <div class="slide-header"></div>
-<h3 id="orga001971">Kernel probes</h3>
+<h3 id="orgaa9125b">Kernel probes</h3>
 <ul>
 <li>pieces of instrumentation code, injected into the kernel dynamically</li>
 <li>useful to debug/profile production system &ldquo;in the field&rdquo;</li>
@@ -72,9 +72,9 @@ have to be absolutely safe, not to make the problem worse.
 </section>
 </section>
 <section>
-<section id="slide-org8fd9d47">
+<section id="slide-orgb8523b5">
 <div class="slide-header"></div>
-<h3 id="org8fd9d47">Run in the kernel domain, so</h3>
+<h3 id="orgb8523b5">Run in the kernel domain, so</h3>
 <ul>
 <li>Can&rsquo;t rely on OS to handle faults (like page fault or division by 0)</li>
 <li>Has to ensure termination within a fixed bound</li>
@@ -95,9 +95,9 @@ architectures.
 </section>
 </section>
 <section>
-<section id="slide-orgc9752ec">
+<section id="slide-org3907496">
 <div class="slide-header"></div>
-<h3 id="orgc9752ec">Existing solutions</h3>
+<h3 id="org3907496">Existing solutions</h3>
 <ul>
 <li>DTrace [Cantrill et al. 2004]</li>
 <li>SystemTap [RedHat]</li>
@@ -123,9 +123,9 @@ safe and SystemTap performs some (unsound) code analysis is make sure probes are
 </section>
 </section>
 <section>
-<section id="slide-org9929ceb">
+<section id="slide-org700306b">
 <div class="slide-header"></div>
-<h3 id="org9929ceb">Our Goals</h3>
+<h3 id="org700306b">Our Goals</h3>
 <ul>
 <li>provide the same level of safety guarantees as DTrace</li>
 <li>compile probes to native code</li>
@@ -137,9 +137,9 @@ safe and SystemTap performs some (unsound) code analysis is make sure probes are
 </section>
 </section>
 <section>
-<section id="slide-orgb738ee7">
+<section id="slide-org4c0dded">
 <div class="slide-header"></div>
-<h3 id="orgb738ee7">Big Picture</h3>
+<h3 id="org4c0dded">Big Picture</h3>
 
 <div class="figure">
 <p><object type="image/svg+xml" data="./tapir.svg" class="org-svg">
@@ -151,9 +151,9 @@ Sorry, your browser does not support SVG.</object>
 </section>
 </section>
 <section>
-<section id="slide-org3a74165">
+<section id="slide-orge19d2d3">
 <div class="slide-header"></div>
-<h3 id="org3a74165">Assumptions and Limitations</h3>
+<h3 id="orge19d2d3">Assumptions and Limitations</h3>
 <ul>
 <li>No support for user-space data collection</li>
 <li>Kernel memory mapped to statically known range(s)</li>
@@ -163,18 +163,18 @@ Sorry, your browser does not support SVG.</object>
 </section>
 </section>
 <section>
-<section id="slide-org51e2642">
+<section id="slide-org8ff9ea5">
 <div class="slide-header"></div>
-<h2 id="org51e2642">TapirAsm</h2>
-<div class="outline-text-2" id="text-org51e2642">
+<h2 id="org8ff9ea5">TapirAsm</h2>
+<div class="outline-text-2" id="text-org8ff9ea5">
 </div>
 <div class="slide-footer"></div>
 </section>
 </section>
 <section>
-<section id="slide-org3e8b209">
+<section id="slide-org458d85d">
 <div class="slide-header"></div>
-<h3 id="org3e8b209">TapirAsm</h3>
+<h3 id="org458d85d">TapirAsm</h3>
 <ul>
 <li>low-level language for the probe code</li>
 <li>tracks stack and execution steps usage</li>
@@ -185,9 +185,32 @@ Sorry, your browser does not support SVG.</object>
 </section>
 </section>
 <section>
-<section id="slide-orgdf0886b">
+<section id="slide-orgb37e0a0">
 <div class="slide-header"></div>
-<h3 id="orgdf0886b">Syntax</h3>
+<h3 id="orgb37e0a0">Safety properties</h3>
+<ul>
+<li>we enforce
+<ul>
+<li>absence of faults</li>
+<li>fixed worst-case bound for termination</li>
+<li>fixed worst-case stack utilization</li>
+
+</ul></li>
+<li>we don&rsquo;t guarantee
+<ul>
+<li>that the collected data actually makes sense</li>
+
+</ul></li>
+
+</ul>
+
+<div class="slide-footer"></div>
+</section>
+</section>
+<section>
+<section id="slide-org38b5fb6">
+<div class="slide-header"></div>
+<h3 id="org38b5fb6">Syntax</h3>
 <p>
 \(\tau ::= \Int{sz} \bnf \Ref{\tau} \bnf \Array{n}{\tau}
              \bnf \Rec{\overline{(nm, \tau)}}\)
@@ -218,9 +241,9 @@ Sorry, your browser does not support SVG.</object>
 </section>
 </section>
 <section>
-<section id="slide-org90f0416">
+<section id="slide-org66999e8">
 <div class="slide-header"></div>
-<h3 id="org90f0416">Cost model</h3>
+<h3 id="org66999e8">Cost model</h3>
 <ul>
 <li>every basic operation takes one step</li>
 <li>infinite number of registers, but we assume every register is allocated on
@@ -234,9 +257,9 @@ the stack</li>
 </section>
 </section>
 <section>
-<section id="slide-org18d1b3f">
+<section id="slide-orgf88b941">
 <div class="slide-header"></div>
-<h3 id="org18d1b3f">Typing rules</h3>
+<h3 id="orgf88b941">Typing rules</h3>
 <ul>
 <li>We extend typing rules for instructions to additionally carry
 initial/final resource counts [Crary and Weirich 2000]</li>
@@ -250,9 +273,9 @@ initial/final resource counts [Crary and Weirich 2000]</li>
 </section>
 </section>
 <section>
-<section id="slide-orgb0067f7">
+<section id="slide-org52ab501">
 <div class="slide-header"></div>
-<h3 id="orgb0067f7">Typing rules: allocation tags</h3>
+<h3 id="org52ab501">Typing rules: allocation tags</h3>
 <ul>
 <li><i>Value</i> &#x2013; not yet allocated</li>
 <li><i>Reg</i> &#x2013; put into (virtual) register</li>
@@ -266,9 +289,9 @@ initial/final resource counts [Crary and Weirich 2000]</li>
 </section>
 </section>
 <section>
-<section id="slide-org539efa5">
+<section id="slide-orgc1522c4">
 <div class="slide-header"></div>
-<h3 id="org539efa5">Typing rules: basic operations</h3>
+<h3 id="orgc1522c4">Typing rules: basic operations</h3>
 <p>
 \(\infer
 {\Gamma \vdash x_1 \oplus x_2 : \Int{sz},\Value,(n+1,m) \to (n,m)}
@@ -285,9 +308,9 @@ initial/final resource counts [Crary and Weirich 2000]</li>
 </section>
 </section>
 <section>
-<section id="slide-orgd219c9a">
+<section id="slide-org8fb6d87">
 <div class="slide-header"></div>
-<h3 id="orgd219c9a">Typing rules: alloc and sequence</h3>
+<h3 id="org8fb6d87">Typing rules: alloc and sequence</h3>
 <p>
 \(\infer
 {\Gamma\vdash \alloc{x} : \tau, \Reg, (n,m+|\tau|) \to (n, m)}
@@ -306,9 +329,9 @@ initial/final resource counts [Crary and Weirich 2000]</li>
 </section>
 </section>
 <section>
-<section id="slide-org68d5808">
+<section id="slide-org6e92760">
 <div class="slide-header"></div>
-<h3 id="org68d5808">Typing rules: checks and branching</h3>
+<h3 id="org6e92760">Typing rules: checks and branching</h3>
 <p>
 \(\infer
 {\Gamma\vdash x_1 =_? x_2 : x_1 \equiv x_2, \BoolReg, (n+1,m+1) \to (n,m)}
@@ -330,9 +353,9 @@ initial/final resource counts [Crary and Weirich 2000]</li>
 </section>
 </section>
 <section>
-<section id="slide-org33e258b">
+<section id="slide-orgffbef80">
 <div class="slide-header"></div>
-<h3 id="org33e258b">Typing rules: loops</h3>
+<h3 id="orgffbef80">Typing rules: loops</h3>
 <p>
 \(\infer{\substack{\Gamma_1; \Gamma_2 \vdash \bloop{x_1}{x_2}{i} : \tau, \Reg,
    (n*p + p', |\tau| + 8 + s' + s) \to (p', 8 + s' + s)}}
@@ -346,18 +369,18 @@ initial/final resource counts [Crary and Weirich 2000]</li>
 </section>
 </section>
 <section>
-<section id="slide-org4628d7f">
+<section id="slide-orgbb4a27b">
 <div class="slide-header"></div>
-<h2 id="org4628d7f">Embedding into Idris</h2>
-<div class="outline-text-2" id="text-org4628d7f">
+<h2 id="orgbb4a27b">Embedding into Idris</h2>
+<div class="outline-text-2" id="text-orgbb4a27b">
 </div>
 <div class="slide-footer"></div>
 </section>
 </section>
 <section>
-<section id="slide-org13f2c3e">
+<section id="slide-org85ee42d">
 <div class="slide-header"></div>
-<h3 id="org13f2c3e">Why embed?</h3>
+<h3 id="org85ee42d">Why embed?</h3>
 <ul>
 <li>Can use host language type system to encode typing rules</li>
 <li>Get rich macro language for free</li>
@@ -368,9 +391,9 @@ initial/final resource counts [Crary and Weirich 2000]</li>
 </section>
 </section>
 <section>
-<section id="slide-org0ca9d1c">
+<section id="slide-org19f871a">
 <div class="slide-header"></div>
-<h3 id="org0ca9d1c">Why Idris?</h3>
+<h3 id="org19f871a">Why Idris?</h3>
 <ul>
 <li>Dependent types</li>
 <li>Flexible do-notation</li>
@@ -383,9 +406,9 @@ initial/final resource counts [Crary and Weirich 2000]</li>
 </section>
 </section>
 <section>
-<section id="slide-org323e2f9">
+<section id="slide-org1990776">
 <div class="slide-header"></div>
-<h3 id="org323e2f9">Techniques used</h3>
+<h3 id="org1990776">Techniques used</h3>
 <ul>
 <li>Indexed monad [Atkey 2009] for instructions</li>
 <li>HOAS-style for registers/proofs</li>
@@ -398,9 +421,9 @@ initial/final resource counts [Crary and Weirich 2000]</li>
 </section>
 </section>
 <section>
-<section id="slide-org4614ddc">
+<section id="slide-org1e1bcbd">
 <div class="slide-header"></div>
-<h3 id="org4614ddc"><code>Instruction</code> indexed monad</h3>
+<h3 id="org1e1bcbd"><code>Instruction</code> indexed monad</h3>
 <ul>
 <li>indexed by initial/final resource counts</li>
 <li>almost direct encoding of our typing rules</li>
@@ -412,9 +435,9 @@ initial/final resource counts [Crary and Weirich 2000]</li>
 </section>
 </section>
 <section>
-<section id="slide-org010e410">
+<section id="slide-orgc6aea79">
 <div class="slide-header"></div>
-<h3 id="org010e410"><code>Instruction</code> monad (2)</h3>
+<h3 id="orgc6aea79"><code>Instruction</code> monad (2)</h3>
 <div class="org-src-container">
 
 <pre  class="src src-agda2">data Instruction : <span style="color: #4f97d7;">(</span>r : Repr<span style="color: #4f97d7;">)</span>
@@ -438,9 +461,9 @@ initial/final resource counts [Crary and Weirich 2000]</li>
 </section>
 </section>
 <section>
-<section id="slide-org239acf1">
+<section id="slide-orga58d11c">
 <div class="slide-header"></div>
-<h3 id="org239acf1">Representing registers/proofs</h3>
+<h3 id="orga58d11c">Representing registers/proofs</h3>
 <ul>
 <li>Goal: restrict valid instructions to only reference previously allocated registers</li>
 <li>One option is to index <code>Instruction</code> type by context</li>
@@ -453,9 +476,9 @@ initial/final resource counts [Crary and Weirich 2000]</li>
 </section>
 </section>
 <section>
-<section id="slide-org4683da6">
+<section id="slide-org47c273c">
 <div class="slide-header"></div>
-<h3 id="org4683da6">Ensuring registers are unforgeable</h3>
+<h3 id="org47c273c">Ensuring registers are unforgeable</h3>
 <ul>
 <li>Well-typed TapirAsm instructions must be polymorphic in register representation</li>
 <li>It is still necessary to be able to chose representation for code generation</li>
@@ -477,9 +500,9 @@ suggesting this):
 </section>
 </section>
 <section>
-<section id="slide-org859e222">
+<section id="slide-org5103e9e">
 <div class="slide-header"></div>
-<h2 id="org859e222">Conclusion</h2>
+<h2 id="org5103e9e">Conclusion</h2>
 <ul>
 <li>construction of safe resource-aware assembly language for
 kernel probes</li>
@@ -498,26 +521,26 @@ kernel probes</li>
 </section>
 </section>
 <section>
-<section id="slide-org7adc1e4">
+<section id="slide-org8fbebc2">
 <div class="slide-header"></div>
-<h2 id="org7adc1e4">Questions?</h2>
+<h2 id="org8fbebc2">Questions?</h2>
 
 
 <div class="slide-footer"></div>
 </section>
 </section>
 <section>
-<section id="slide-org5ebf8b0">
+<section id="slide-orgc6bc328">
 <div class="slide-header"></div>
-<h2 id="org5ebf8b0">More slides</h2>
+<h2 id="orgc6bc328">More slides</h2>
 
 <div class="slide-footer"></div>
 </section>
 </section>
 <section>
-<section id="slide-orgcb62c9a">
+<section id="slide-org727b5c5">
 <div class="slide-header"></div>
-<h2 id="orgcb62c9a">Functions</h2>
+<h2 id="org727b5c5">Functions</h2>
 <ul>
 <li>in many cases it&rsquo;s more fruitful to just use macros</li>
 <li>still, we sometimes want functions</li>
@@ -528,9 +551,9 @@ kernel probes</li>
 </section>
 </section>
 <section>
-<section id="slide-org2edae6d">
+<section id="slide-orgf0151fb">
 <div class="slide-header"></div>
-<h3 id="org2edae6d">Adding functions</h3>
+<h3 id="orgf0151fb">Adding functions</h3>
 <ul>
 <li>we have no support for 1st class functions, so no function types</li>
 <li>still want functions to be well-behaved</li>
@@ -544,9 +567,9 @@ kernel probes</li>
 </section>
 </section>
 <section>
-<section id="slide-orge36984b">
+<section id="slide-orge8178f0">
 <div class="slide-header"></div>
-<h3 id="orge36984b">Parametric functions</h3>
+<h3 id="orge8178f0">Parametric functions</h3>
 <ul>
 <li>unfortunately, not enough to define even basic functions</li>
 <li>costs must vary for different invocations</li>
@@ -561,9 +584,9 @@ kernel probes</li>
 </section>
 </section>
 <section>
-<section id="slide-org2c9c175">
+<section id="slide-org4b191f1">
 <div class="slide-header"></div>
-<h3 id="org2c9c175">Compilation of functions</h3>
+<h3 id="org4b191f1">Compilation of functions</h3>
 <ul>
 <li>we have to instantiate the parameter before compiling
 (think C++ templates)</li>
